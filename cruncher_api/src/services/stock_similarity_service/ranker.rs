@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Result;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -6,18 +6,19 @@ use std::f32::NAN;
 use std::fs;
 use std::hash::{Hash, Hasher};
 
-#[derive(Deserialize)]
-struct TokenCountedStockInfo {
-    stocks: Vec<TokenCountedStock>,
+
+#[derive(Deserialize, Clone, Debug)]
+pub struct TokenCountedStockInfo {
+    pub stocks: Vec<TokenCountedStock>,
+}
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct TokenCountedStock {
+    pub ticker: String,
+    pub stock_exchange: String,
+    pub token_count: HashMap<String, i32>,
 }
 
-#[derive(Deserialize)]
-struct TokenCountedStock {
-    ticker: String,
-    stock_exchange: String,
-    token_count: HashMap<String, u8>,
-}
-
+#[derive(Debug)]
 struct Term {
     term: String,
     tf_idf_weight: f32,
@@ -48,6 +49,7 @@ impl Hash for Term {
     }
 }
 
+#[derive(Debug)]
 struct Query {
     ticker: String,
     terms: HashSet<Term>,
@@ -62,11 +64,12 @@ impl Query {
     }
 }
 
-struct RankedStock<'a> {
-    token_counted_stock: &'a TokenCountedStock,
+#[derive(Serialize, Clone)]
+pub struct RankedStock {
+    token_counted_stock: TokenCountedStock,
     ranking: f32,
 }
-
+#[derive(Debug)]
 struct TFIDFWeightProduct {
     document_weight: f32,
     query_weight: f32,
@@ -87,17 +90,17 @@ impl Hash for TFIDFWeightProduct {
     }
 }
 
-pub fn generate_ranking(ticker: String) -> Result<()> {
-    let token_counted_stocks: TokenCountedStockInfo = parse_token_counted_stocks_from_json(String::from("C:\\Users\\Trist\\RustLearning\\Stock Suggestion Engine\\cruncher_api\\filtered_stocks_NasdaqGM_NYSE.json"));
+pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockInfo) -> Result<Vec<RankedStock>> {
+  //  let token_counted_stocks: TokenCountedStockInfo = parse_token_counted_stocks_from_json(String::from("C:\\Users\\Trist\\RustLearning\\Stock Suggestion Engine\\cruncher_api\\filtered_stocks_NasdaqGM_NYSE.json"));
     let target_stock: &TokenCountedStock =
         match find_stock_with_matching_ticker(ticker, &token_counted_stocks) {
             Some(val) => val,
             None => panic!("Couldn't find a stock that matched the given ticker"),
         };
     let query: Query = initialize_query(target_stock, &token_counted_stocks);
-    let rankings: Vec<RankedStock> = rank_documents_for_similarity(&query, &token_counted_stocks);
+    let rankings: Vec<RankedStock> = rank_documents_for_similarity(&query, token_counted_stocks.clone());
     output_rankings(&rankings);
-    Ok(())
+    Ok(rankings)
 }
 
 fn output_rankings(rankings: &Vec<RankedStock>) {
@@ -179,7 +182,7 @@ fn calculate_document_frequency(token: &String, documents: &TokenCountedStockInf
 }
 
 fn calculate_tf_idf_weight(
-    term_frequency: u8,
+    term_frequency: i32,
     document_frequency: u16,
     num_documents: usize,
 ) -> f32 {
@@ -204,7 +207,7 @@ fn calculate_document_similarity(
     for term in query.terms.iter() {
         let term_frequency = match stock.token_count.get(&term.term) {
             Some(val) => val,
-            None => &(0 as u8),
+            None => &(0 as i32),
         };
         let document_tf_idf: f32 =
             calculate_tf_idf_weight(*term_frequency, term.document_frequency, num_documents);
@@ -223,24 +226,24 @@ fn calculate_document_similarity(
     sum
 }
 
-fn rank_documents_for_similarity<'a>(
+fn rank_documents_for_similarity(
     query: &Query,
-    document_collection: &'a TokenCountedStockInfo,
-) -> Vec<RankedStock<'a>> {
+    document_collection: TokenCountedStockInfo,
+) -> Vec<RankedStock> {
     let num_documents = document_collection.stocks.len();
-    let mut document_rankings: Vec<RankedStock<'a>> = Vec::new();
+    let mut document_rankings: Vec<RankedStock> = Vec::new();
     for document in document_collection.stocks.iter() {
         if document.ticker != query.ticker {
             //TODO: This is probably the best spot to thread this out, should be ~linear scaling with threads
             let similarity_val = calculate_document_similarity(query, document, num_documents);
             document_rankings.push(RankedStock {
                 ranking: similarity_val,
-                token_counted_stock: document,
+                token_counted_stock: document.clone(),
             });
         }
     }
     //TODO: Pull this out into a "sortRankedDocuments" and rename filtered_ranks to sorted_ranks
-    let mut filtered_ranks: Vec<RankedStock<'a>> = document_rankings
+    let mut filtered_ranks: Vec<RankedStock> = document_rankings
         .into_iter()
         .filter(|a| a.ranking != NAN)
         .collect();
@@ -249,5 +252,5 @@ fn rank_documents_for_similarity<'a>(
             .partial_cmp(&a.ranking)
             .unwrap_or_else(|| std::cmp::Ordering::Equal)
     });
-    filtered_ranks
+    filtered_ranks[0..10].to_vec()
 }

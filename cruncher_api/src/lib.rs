@@ -11,7 +11,6 @@ extern crate serde;
 
 pub mod logger;
 pub mod parser;
-pub mod ranker;
 pub mod repos;
 pub mod services;
 pub mod schema;
@@ -45,7 +44,8 @@ pub fn initialize_cruncher_api(){
         .attach(CruncherDbConn::fairing())
         .mount("/", routes![
                                               stock_similarity_endpoints::get_all,
-                                              stock_similarity_endpoints::get_stock_by_id
+                                              stock_similarity_endpoints::get_stock_by_id,
+                                              stock_similarity_endpoints::get_similar
                                             ])
         .launch();
 }

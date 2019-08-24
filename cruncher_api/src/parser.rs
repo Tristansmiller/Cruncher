@@ -98,7 +98,6 @@ fn count_tokens(stock_info: StockInfo) -> TokenCountedStockInfo {
                     }
                 }
             }
-
             token_counted_batch
         });
         thread_pool.push(join_handle);
