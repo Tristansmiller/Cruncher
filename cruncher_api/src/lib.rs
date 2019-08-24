@@ -26,22 +26,25 @@
 //        Ok(Config { filename })
 //     }
 // }
-
+#![feature(const_fn)]
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
-
+extern crate proc_macro;
+extern crate bigdecimal;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use std::env;
 
+
+pub mod logger;
 pub mod models;
 pub mod parser;
 pub mod ranker;
-pub mod schema;
 pub mod repos;
-pub mod logger;
+pub mod services;
+pub mod schema;
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();

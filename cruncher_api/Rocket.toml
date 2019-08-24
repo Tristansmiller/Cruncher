@@ -1,0 +1,2 @@
+[global.databases.cruncher_db]
+url = "postgres://postgres:794705@localhost/cruncher"

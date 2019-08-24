@@ -6,7 +6,7 @@ pub struct Stock {
     pub name: String,
     pub legal_name: String,
     pub sic: String,
-    pub stock_exchange: String
+    pub stock_exchange: String,
 }
 
 #[derive(Insertable)]
@@ -16,5 +16,5 @@ pub struct InsertableStock<'a> {
     pub name: &'a str,
     pub legal_name: &'a str,
     pub sic: &'a str,
-    pub stock_exchange: &'a str
+    pub stock_exchange: &'a str,
 }

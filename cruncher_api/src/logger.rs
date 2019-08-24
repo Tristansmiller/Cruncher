@@ -6,7 +6,7 @@ pub enum LogLevel {
     Info,
 }
 pub struct Logger {
-    file_name: String
+    file_name: String,
 }
 impl Logger {
     pub fn log(&self, message: &str, log_level: LogLevel) {
@@ -15,14 +15,14 @@ impl Logger {
             LogLevel::Error => "ERROR",
             LogLevel::Warning => "WARNING",
             LogLevel::Debug => "DEBUG",
-            LogLevel::Info => "INFO"
+            LogLevel::Info => "INFO",
         };
         println!("{} - {} : {}", level_str, self.file_name, message);
     }
 
     pub fn new(file_name_param: &str) -> Logger {
         Logger {
-            file_name: file_name_param.to_string()
+            file_name: file_name_param.to_string(),
         }
     }
 }

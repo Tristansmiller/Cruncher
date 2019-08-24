@@ -1,6 +1,6 @@
 use super::super::super::schema::stocks;
-
-#[derive(Queryable, Identifiable, Debug, Clone)]
+use serde::Serialize;
+#[derive(Queryable, Identifiable, Debug, Clone, Serialize)]
 #[primary_key(ticker)]
 #[table_name = "stocks"]
 pub struct QueryableStock {
@@ -8,11 +8,10 @@ pub struct QueryableStock {
     pub name: Option<String>,
     pub legal_name: Option<String>,
     pub sic: Option<String>,
-    pub stock_exchange: Option<String>
+    pub stock_exchange: Option<String>,
 }
 
-
-#[derive(Insertable, AsChangeset)]
+#[derive(Insertable, AsChangeset, Debug)]
 #[table_name = "stocks"]
 pub struct InsertableStock<'a> {
     pub ticker: &'a str,
@@ -21,6 +20,3 @@ pub struct InsertableStock<'a> {
     pub sic: &'a str,
     pub stock_exchange: &'a str,
 }
-
-
-

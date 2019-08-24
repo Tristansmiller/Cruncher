@@ -2,7 +2,7 @@ table! {
     similarity_ranking (tickera, tickerb) {
         tickera -> Varchar,
         tickerb -> Varchar,
-        similarity -> Numeric,
+        similarity -> Int4,
     }
 }
 

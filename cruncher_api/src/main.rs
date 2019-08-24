@@ -1,34 +1,42 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 
-#[macro_use]
-extern crate rocket;
-
+#[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
 // use std::env;
 // use std::process;
 // use std::time;
 // use cruncher_api::Config;
 extern crate diesel;
 extern crate cruncher_api;
-pub mod cruncher_manager;
-use self::diesel::prelude::*;
-use self::models::*;
-use self::cruncher_api::*;
+extern crate serde_json;
+extern crate serde;
 
-#[get("/")]
-fn index() -> &'static str {
-    use cruncher_api::schema::stocks::dsl::*;
-    let connection = establish_connection();
-    let results = stocks
-        .filter(stockexchange.eq("NasdaqGM"))
-        .limit(5)
-        .load::<Stock>(&connection)
-        .expect("Error loading stocks");
-    serde_json::to_string(&results).or_else(())
-}
+pub mod cruncher_manager;
+pub mod endpoints;
+
+use rocket::State;
+use self::cruncher_api::*;
+use self::cruncher_manager::CruncherManager;
+use endpoints::stock_similarity_endpoints;
+pub mod db_refresh;
+#[database("cruncher_db")]
+pub struct CruncherDbConn(diesel::PgConnection);
+
+//TODO: Figure out how to return 404's and other error codes
 
 fn main() {
     //Rocket code
-    rocket::ignite().mount("/", routes![index]).launch();
+    let cruncher_manager = CruncherManager::new();
+    rocket::ignite()
+            .manage(cruncher_manager)
+            .attach(CruncherDbConn::fairing())
+            .mount("/", routes![
+                                              stock_similarity_endpoints::get_all,
+                                              stock_similarity_endpoints::get_stock_by_id
+                                            ])
+            .launch();
+
+
 
     //TODO: Build out SQL DB to store TokenCountedStock
     //TODO: Build out Diesel to retrieve TokenCountedStock
