@@ -3,6 +3,7 @@
     <words>
       <w>bigdecimal</w>
       <w>dotenv</w>
+      <w>getall</w>
       <w>insertable</w>
       <w>serde</w>
     </words>

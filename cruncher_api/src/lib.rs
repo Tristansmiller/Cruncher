@@ -1,71 +1,51 @@
-// use std::error::Error;
-// mod parser;
-// mod ranker;
-
-// pub fn run(config: Config) -> Result<(), Box<dyn Error>>{
-
-//     println!("In file {}", config.filename);
-//     //parser::generate_token_counted_stock_file(config.filename).expect("Failed to generate token counted stock file.");
-//     ranker::generate_ranking(String::from("RTN")).expect("err");
-//     Ok(())
-// }
-
-// pub struct Config {
-//     filename: String
-// }
-
-// impl Config {
-//     pub fn new(mut args: std::env::Args) -> Result<Config, &'static str> {
-//        args.next();
-
-//        let filename = match args.next() {
-//            Some(arg) => arg,
-//            None => return Err("Didn't get a file name."),
-//        };
-
-//        Ok(Config { filename })
-//     }
-// }
-#![feature(const_fn)]
-#[macro_use]
-extern crate diesel;
+#![feature(proc_macro_hygiene, decl_macro)]
+#[macro_use] extern crate diesel;
+#[macro_use] extern crate rocket;
+#[macro_use] extern crate rocket_contrib;
 extern crate dotenv;
 extern crate proc_macro;
 extern crate bigdecimal;
-use diesel::pg::PgConnection;
-use diesel::prelude::*;
-use dotenv::dotenv;
-use std::env;
+extern crate serde_json;
+extern crate serde;
 
 
 pub mod logger;
-pub mod models;
 pub mod parser;
 pub mod ranker;
 pub mod repos;
 pub mod services;
 pub mod schema;
+pub mod endpoints;
 
-pub fn establish_connection() -> PgConnection {
-    dotenv().ok();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
+use std::sync::Arc;
+
+use repos::stock_repo::StockRepo;
+use repos::similarity_ranking_repo::SimilarityRankingRepo;
+use repos::token_count_repo::TokenCountRepo;
+use services::stock_similarity_service::StockSimilarityService;
+use endpoints::stock_similarity_endpoints;
+
+#[database("cruncher_db")]
+pub struct CruncherDbConn(diesel::PgConnection);
+
+pub fn initialize_cruncher_api(){
+    //Initialize Repositories
+    let stock_repo = Arc::new(StockRepo::new());
+    let similarity_ranking_repo = Arc::new(SimilarityRankingRepo::new());
+    let token_count_repo = Arc::new(TokenCountRepo::new());
+
+    //Initialize Services
+    let stock_similarity_service = StockSimilarityService::new(Arc::clone(&stock_repo),
+                                                               Arc::clone(&similarity_ranking_repo),
+                                                               Arc::clone(&token_count_repo));
+
+    //Connect dependencies (services, DB connection) to rocket and mount endpoints
+    rocket::ignite()
+        .manage(stock_similarity_service)
+        .attach(CruncherDbConn::fairing())
+        .mount("/", routes![
+                                              stock_similarity_endpoints::get_all,
+                                              stock_similarity_endpoints::get_stock_by_id
+                                            ])
+        .launch();
 }
-
-//use self::models::{InsertableStock, Stock};
-//pub fn create_stock<'a>(
-//    conn: &PgConnection,
-//    ticker: &'a str,
-//    stock_exchange: &'a str
-//) -> Stock {
-//    use schema::stocks;
-//    use schema::stocks::dsl::*;
-//    let new_stock = InsertableStock {
-//        ticker: ticker,
-//        stock_exchange: stock_exchange,
-//    };
-//    diesel::insert_into(stocks::table)
-//        .values(&new_stock)
-//        .get_result(conn)
-//        .expect("Error saving new stock")
-//}

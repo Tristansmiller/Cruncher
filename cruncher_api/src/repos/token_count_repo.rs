@@ -1,12 +1,14 @@
 pub mod token_count_models;
-use self::token_count_models::{InsertableTokenCount, QueryableTokenCount};
+
 use super::super::diesel::prelude::*;
-use super::super::logger::{LogLevel, Logger};
-use super::super::schema::token_count;
-use super::super::schema::token_count::dsl::*;
 use diesel::pg::{PgConnection};
 use diesel::result::Error;
 use diesel::sql_types::{Bool};
+
+use self::token_count_models::{InsertableTokenCount, QueryableTokenCount};
+use super::super::logger::{LogLevel, Logger};
+use super::super::schema::token_count;
+use super::super::schema::token_count::dsl::*;
 
 pub struct TokenCountRepo {
     logger: Logger,
@@ -14,7 +16,7 @@ pub struct TokenCountRepo {
 impl TokenCountRepo {
     pub fn new() -> TokenCountRepo {
         TokenCountRepo {
-            logger: Logger::new("repos.stock_repos.rs"),
+            logger: Logger::new("repos.token_count_repo.rs"),
         }
     }
 
@@ -22,7 +24,7 @@ impl TokenCountRepo {
         let result = token_count.find(search_pk).first(db_conn);
         match result {
             Ok(result_val) => Some(result_val),
-            Err(err) => {
+            Err(_err) => {
                 self.logger
                     .log("Failed to retrieve token_count", LogLevel::Warning);
                 None

@@ -1,12 +1,15 @@
 pub mod similarity_ranking_models;
-use self::similarity_ranking_models::{InsertableSimilarityRanking, QueryableSimilarityRanking};
+
 use super::super::diesel::prelude::*;
-use super::super::logger::{LogLevel, Logger};
-use super::super::schema::similarity_ranking;
-use super::super::schema::similarity_ranking::dsl::*;
 use diesel::pg::{PgConnection};
 use diesel::result::Error;
 use diesel::sql_types::{Bool};
+
+
+use self::similarity_ranking_models::{InsertableSimilarityRanking, QueryableSimilarityRanking};
+use super::super::logger::{LogLevel, Logger};
+use super::super::schema::similarity_ranking;
+use super::super::schema::similarity_ranking::dsl::*;
 
 pub struct SimilarityRankingRepo {
     logger: Logger,
@@ -14,7 +17,7 @@ pub struct SimilarityRankingRepo {
 impl SimilarityRankingRepo {
     pub fn new() -> SimilarityRankingRepo {
         SimilarityRankingRepo {
-            logger: Logger::new("repos.stock_repos.rs"),
+            logger: Logger::new("repos.similarity_repo.rs"),
         }
     }
 
@@ -22,7 +25,7 @@ impl SimilarityRankingRepo {
         let result = similarity_ranking.find(search_pk).first(db_conn);
         match result {
             Ok(result_val) => Some(result_val),
-            Err(err) => {
+            Err(_err) => {
                 self.logger
                     .log("Failed to retrieve similarity_ranking", LogLevel::Warning);
                 None

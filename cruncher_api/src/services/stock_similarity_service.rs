@@ -22,15 +22,15 @@ impl StockSimilarityService {
         }
     }
 
-    pub fn getAllStocks(&self,db_conn: &PgConnection) -> Vec<QueryableStock> {
+    pub fn get_all_stocks(&self,db_conn: &PgConnection) -> Vec<QueryableStock> {
         self.stock_repo.get_all(db_conn)
     }
 
-    pub fn getStockById(&self, db_conn: &PgConnection, ticker: String) -> Option<QueryableStock> {
+    pub fn get_stock_by_ticker(&self, db_conn: &PgConnection, ticker: String) -> Option<QueryableStock> {
         self.stock_repo.get_one_by_pk(db_conn, ticker)
     }
 
-    pub fn getAllTokenCounts(&self, db_conn: &PgConnection) -> Vec<QueryableTokenCount> {
+    pub fn get_all_token_counts(&self, db_conn: &PgConnection) -> Vec<QueryableTokenCount> {
         self.token_count_repo.get_all(db_conn)
     }
 }

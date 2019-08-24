@@ -1,11 +1,13 @@
 pub mod stock_models;
-use self::stock_models::{InsertableStock, QueryableStock};
+
 use super::super::diesel::prelude::*;
+use diesel::pg::PgConnection;
+use diesel::result::Error;
+
+use self::stock_models::{InsertableStock, QueryableStock};
 use super::super::logger::{LogLevel, Logger};
 use super::super::schema::stocks;
 use super::super::schema::stocks::dsl::*;
-use diesel::pg::PgConnection;
-use diesel::result::Error;
 
 pub struct StockRepo {
     logger: Logger,
@@ -13,7 +15,7 @@ pub struct StockRepo {
 impl StockRepo {
     pub fn new() -> StockRepo {
         StockRepo {
-            logger: Logger::new("repos.stock_repos.rs"),
+            logger: Logger::new("repos.stock_repo.rs"),
         }
     }
 
@@ -21,7 +23,7 @@ impl StockRepo {
         let result = stocks.find(search_pk).first(db_conn);
         match result {
             Ok(result_val) => Some(result_val),
-            Err(err) => {
+            Err(_err) => {
                 self.logger
                     .log("Failed to retrieve stocks", LogLevel::Warning);
                 None
@@ -49,7 +51,7 @@ impl StockRepo {
             Ok(already_existing_val) => diesel::update(&already_existing_val)
                                                 .set(&save_val)
                                                 .get_result(db_conn),
-            Err(err) => {
+            Err(_err) => {
                 diesel::insert_into(stocks::table)
                     .values(save_val)
                     .get_result(db_conn)
