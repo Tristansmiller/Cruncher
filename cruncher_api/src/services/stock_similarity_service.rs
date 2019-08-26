@@ -101,7 +101,6 @@ impl StockSimilarityService {
     }
     //TODO: Figure out inner joins so we can get back stocks with additional info from the sim ranking repo
     pub fn get_similar_stocks(&self, db_conn: &PgConnection, ticker: String) -> Result<StockSimilarityResultDto, serde_json::Error>{
-        let token_counted_stocks = self.create_token_counted_stocks(db_conn);
         let cached_rankings = self.similarity_ranking_repo.get_rankings_by_target_stock(db_conn, ticker.clone());
         if cached_rankings.len() > 0 {
             println!("Found cached data.");
@@ -114,12 +113,15 @@ impl StockSimilarityService {
                     ranking: cached_result.similarity
                 }
             }).collect();
+            println!("Done");
             Ok(StockSimilarityResultDto {
                 target_stock: target,
                 ranked_stocks: results
             })
         } else {
+            let token_counted_stocks = self.create_token_counted_stocks(db_conn);
             let results = ranker::generate_ranking(ticker,token_counted_stocks);
+            println!("Done");
             match results {
                 Ok(ranked_results) => {
                     ranked_results.ranked_stocks.iter().for_each(|ranked_stock|{

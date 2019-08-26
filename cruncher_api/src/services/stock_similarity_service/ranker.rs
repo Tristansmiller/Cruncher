@@ -225,10 +225,11 @@ fn calculate_document_similarity(
             term: term.term.to_string(),
         });
     }
+    //TODO: Am I not actually calculating similarity? It looks like im just getting the vector, normalizing it and then takling the largest
     magnitude = magnitude.sqrt();
     let mut sum: f32 = 0.0;
     for weight_product in tf_idf_weight_products.into_iter() {
-        sum += (weight_product.document_weight / magnitude) * weight_product.query_weight;
+        sum += (weight_product.document_weight  * weight_product.query_weight) / magnitude;
     }
     sum
 }

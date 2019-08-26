@@ -18,6 +18,7 @@ pub fn get_all(conn: CruncherDbConn, stock_similarity_service: State<StockSimila
 
 #[get("/get-similar/<ticker>")]
 pub fn get_similar(conn: CruncherDbConn, stock_similarity_service: State<StockSimilarityService>, ticker: String) -> String {
+    println!("Began endpoint response");
     match stock_similarity_service.get_similar_stocks(&*conn, ticker) {
         Ok(ranked_stocks) => {
            serde_json::to_string(&ranked_stocks).expect("Failed to calculate rankings")

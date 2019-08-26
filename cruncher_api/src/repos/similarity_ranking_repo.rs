@@ -55,9 +55,11 @@ impl SimilarityRankingRepo {
     }
 
     pub fn get_rankings_by_target_stock(&self, db_conn: &PgConnection, target_stock: String) ->Vec<QueryableSimilarityRanking>{
+        println!("Attempting to retrieve stocks...");
         let results = similarity_ranking.filter(tickera.eq(target_stock))
                                         .load::<QueryableSimilarityRanking>(db_conn)
                                         .expect("Error");
+        println!("Stocks retrieved");
         results
     }
 
