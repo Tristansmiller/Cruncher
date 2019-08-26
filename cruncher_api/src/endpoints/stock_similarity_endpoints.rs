@@ -19,9 +19,24 @@ pub fn get_all(conn: CruncherDbConn, stock_similarity_service: State<StockSimila
 #[get("/get-similar/<ticker>")]
 pub fn get_similar(conn: CruncherDbConn, stock_similarity_service: State<StockSimilarityService>, ticker: String) -> String {
     println!("Began endpoint response");
-    match stock_similarity_service.get_similar_stocks(&*conn, ticker) {
+    match stock_similarity_service.get_similar_stocks(&*conn, ticker, -1) {
         Ok(ranked_stocks) => {
            serde_json::to_string(&ranked_stocks).expect("Failed to calculate rankings")
+        },
+        Err(_) => {
+            "".to_string()
+        }
+    }
+}
+#[get("/get-similar/<ticker>?<limit>")]
+pub fn get_similar_with_limit(conn: CruncherDbConn,
+                              stock_similarity_service: State<StockSimilarityService>,
+                              ticker: String,
+                              limit: i32) -> String {
+    println!("Began endpoint response with limit");
+    match stock_similarity_service.get_similar_stocks(&*conn, ticker, limit) {
+        Ok(ranked_stocks) => {
+            serde_json::to_string(&ranked_stocks).expect("Failed to calculate rankings")
         },
         Err(_) => {
             "".to_string()

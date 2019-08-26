@@ -54,13 +54,16 @@ impl SimilarityRankingRepo {
         results
     }
 
-    pub fn get_rankings_by_target_stock(&self, db_conn: &PgConnection, target_stock: String) ->Vec<QueryableSimilarityRanking>{
-        println!("Attempting to retrieve stocks...");
-        let results = similarity_ranking.filter(tickera.eq(target_stock))
-                                        .load::<QueryableSimilarityRanking>(db_conn)
-                                        .expect("Error");
-        println!("Stocks retrieved");
-        results
+    pub fn get_rankings_by_target_stock(&self, db_conn: &PgConnection, target_stock: String, limit: i32) ->Vec<QueryableSimilarityRanking>{
+        let mut query = similarity_ranking.filter(tickera.eq(target_stock));
+        if limit > 0 {
+            query.limit(limit.into())
+                 .load::<QueryableSimilarityRanking>(db_conn)
+                 .expect("Error")
+        } else {
+            query.load::<QueryableSimilarityRanking>(db_conn)
+                 .expect("Error")
+        }
     }
 
     pub fn save_one(&self, db_conn: &PgConnection, save_val: InsertableSimilarityRanking) -> Result<QueryableSimilarityRanking, Error> {

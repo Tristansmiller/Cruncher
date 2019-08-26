@@ -94,7 +94,7 @@ impl Hash for TFIDFWeightProduct {
     }
 }
 
-pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockInfo) -> Result<RankedResults> {
+pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockInfo, limit: i32) -> Result<RankedResults> {
   //  let token_counted_stocks: TokenCountedStockInfo = parse_token_counted_stocks_from_json(String::from("C:\\Users\\Trist\\RustLearning\\Stock Suggestion Engine\\cruncher_api\\filtered_stocks_NasdaqGM_NYSE.json"));
     let target_stock: &TokenCountedStock =
         match find_stock_with_matching_ticker(ticker, &token_counted_stocks) {
@@ -102,7 +102,7 @@ pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockIn
             None => panic!("Couldn't find a stock that matched the given ticker"),
         };
     let query: Query = initialize_query(target_stock, &token_counted_stocks);
-    let rankings: Vec<RankedStock> = rank_documents_for_similarity(&query, token_counted_stocks.clone());
+    let rankings: Vec<RankedStock> = rank_documents_for_similarity(&query, token_counted_stocks.clone(), limit);
     output_rankings(&rankings);
     Ok(RankedResults {
         ranked_stocks: rankings,
@@ -234,15 +234,30 @@ fn calculate_document_similarity(
     sum
 }
 
+fn sort_ranked_documents(ranked_stocks: Vec<RankedStock>) -> Vec<RankedStock>{
+    let mut filtered_ranks: Vec<RankedStock> = ranked_stocks
+        .into_iter()
+        .filter(|a| a.ranking != NAN)
+        .collect();
+    filtered_ranks.sort_by(|a, b| {
+        b.ranking
+         .partial_cmp(&a.ranking)
+         .unwrap_or_else(|| std::cmp::Ordering::Equal)
+    });
+    filtered_ranks
+}
+
 fn rank_documents_for_similarity(
     query: &Query,
     document_collection: TokenCountedStockInfo,
+    limit: i32
 ) -> Vec<RankedStock> {
     let num_documents = document_collection.stocks.len();
     let mut document_rankings: Vec<RankedStock> = Vec::new();
     for document in document_collection.stocks.iter() {
         if document.ticker != query.ticker {
             //TODO: This is probably the best spot to thread this out, should be ~linear scaling with threads
+            //Look at how you did this in the parse to find out how you want to do it here. You'll have to batch arrays for each thread then join them.
             let similarity_val = calculate_document_similarity(query, document, num_documents);
             document_rankings.push(RankedStock {
                 ranking: similarity_val,
@@ -251,14 +266,10 @@ fn rank_documents_for_similarity(
         }
     }
     //TODO: Pull this out into a "sortRankedDocuments" and rename filtered_ranks to sorted_ranks
-    let mut filtered_ranks: Vec<RankedStock> = document_rankings
-        .into_iter()
-        .filter(|a| a.ranking != NAN)
-        .collect();
-    filtered_ranks.sort_by(|a, b| {
-        b.ranking
-            .partial_cmp(&a.ranking)
-            .unwrap_or_else(|| std::cmp::Ordering::Equal)
-    });
-    filtered_ranks[0..10].to_vec()
+    let mut filtered_ranks: Vec<RankedStock> = sort_ranked_documents(document_rankings);
+    if limit > 0 {
+        filtered_ranks[0..limit as usize].to_vec()
+    } else {
+        filtered_ranks
+    }
 }

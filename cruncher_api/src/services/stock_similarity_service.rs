@@ -73,6 +73,7 @@ impl StockSimilarityService {
         token_count_map
     }
 
+    //TODO: This takes longer than the actual ranking. Figure out a smarter way to do this, maybe you can get fancy with the SQL joins to get the data closer to the needed format
     fn create_token_counted_stocks(&self, db_conn: &PgConnection) -> TokenCountedStockInfo {
         let token_count_map = self.create_token_count_maps(db_conn);
         let stocks = self.stock_repo.get_all(db_conn);
@@ -100,8 +101,8 @@ impl StockSimilarityService {
         }
     }
     //TODO: Figure out inner joins so we can get back stocks with additional info from the sim ranking repo
-    pub fn get_similar_stocks(&self, db_conn: &PgConnection, ticker: String) -> Result<StockSimilarityResultDto, serde_json::Error>{
-        let cached_rankings = self.similarity_ranking_repo.get_rankings_by_target_stock(db_conn, ticker.clone());
+    pub fn get_similar_stocks(&self, db_conn: &PgConnection, ticker: String, limit: i32) -> Result<StockSimilarityResultDto, serde_json::Error>{
+        let cached_rankings = self.similarity_ranking_repo.get_rankings_by_target_stock(db_conn, ticker.clone(), limit);
         if cached_rankings.len() > 0 {
             println!("Found cached data.");
             let target = StockSimilarityTargetDto {
@@ -120,7 +121,7 @@ impl StockSimilarityService {
             })
         } else {
             let token_counted_stocks = self.create_token_counted_stocks(db_conn);
-            let results = ranker::generate_ranking(ticker,token_counted_stocks);
+            let results = ranker::generate_ranking(ticker,token_counted_stocks, limit);
             println!("Done");
             match results {
                 Ok(ranked_results) => {

@@ -45,7 +45,8 @@ pub fn initialize_cruncher_api(){
         .mount("/", routes![
                                               stock_similarity_endpoints::get_all,
                                               stock_similarity_endpoints::get_stock_by_id,
-                                              stock_similarity_endpoints::get_similar
+                                              stock_similarity_endpoints::get_similar,
+                                              stock_similarity_endpoints::get_similar_with_limit
                                             ])
         .launch();
 }

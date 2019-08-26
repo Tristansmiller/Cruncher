@@ -17,7 +17,7 @@ async function fetchStuff() {
       };
       let tickerArr = [];
       let companyArr = [];
-      let data = await companyAPI.getAllCompanies(opts)
+      let data = await companyAPI.getAllCompanies(opts);
       data.companies.forEach(company=>tickerArr.push(company.ticker));
       opts.nextPage = data.next_page;
       while(data.companies.next_page!=null){
