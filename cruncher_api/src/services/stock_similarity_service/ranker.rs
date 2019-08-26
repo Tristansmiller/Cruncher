@@ -63,11 +63,15 @@ impl Query {
         }
     }
 }
-
+#[derive(Serialize, Clone)]
+pub struct RankedResults {
+    pub ranked_stocks: Vec<RankedStock>,
+    pub target_stock: TokenCountedStock
+}
 #[derive(Serialize, Clone)]
 pub struct RankedStock {
-    token_counted_stock: TokenCountedStock,
-    ranking: f32,
+    pub token_counted_stock: TokenCountedStock,
+    pub ranking: f32,
 }
 #[derive(Debug)]
 struct TFIDFWeightProduct {
@@ -90,7 +94,7 @@ impl Hash for TFIDFWeightProduct {
     }
 }
 
-pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockInfo) -> Result<Vec<RankedStock>> {
+pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockInfo) -> Result<RankedResults> {
   //  let token_counted_stocks: TokenCountedStockInfo = parse_token_counted_stocks_from_json(String::from("C:\\Users\\Trist\\RustLearning\\Stock Suggestion Engine\\cruncher_api\\filtered_stocks_NasdaqGM_NYSE.json"));
     let target_stock: &TokenCountedStock =
         match find_stock_with_matching_ticker(ticker, &token_counted_stocks) {
@@ -100,7 +104,10 @@ pub fn generate_ranking(ticker: String,token_counted_stocks: TokenCountedStockIn
     let query: Query = initialize_query(target_stock, &token_counted_stocks);
     let rankings: Vec<RankedStock> = rank_documents_for_similarity(&query, token_counted_stocks.clone());
     output_rankings(&rankings);
-    Ok(rankings)
+    Ok(RankedResults {
+        ranked_stocks: rankings,
+        target_stock: target_stock.clone()
+    })
 }
 
 fn output_rankings(rankings: &Vec<RankedStock>) {

@@ -54,6 +54,13 @@ impl SimilarityRankingRepo {
         results
     }
 
+    pub fn get_rankings_by_target_stock(&self, db_conn: &PgConnection, target_stock: String) ->Vec<QueryableSimilarityRanking>{
+        let results = similarity_ranking.filter(tickera.eq(target_stock))
+                                        .load::<QueryableSimilarityRanking>(db_conn)
+                                        .expect("Error");
+        results
+    }
+
     pub fn save_one(&self, db_conn: &PgConnection, save_val: InsertableSimilarityRanking) -> Result<QueryableSimilarityRanking, Error> {
         let already_existing_val: Option<QueryableSimilarityRanking> =
             self.get_one_by_pk(db_conn,(save_val.tickera.to_string(),save_val.tickerb.to_string()));

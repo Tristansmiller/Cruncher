@@ -3,13 +3,30 @@ use super::super::repos::similarity_ranking_repo::SimilarityRankingRepo;
 use super::super::repos::stock_repo::StockRepo;
 use std::sync::Arc;
 use diesel::PgConnection;
+use serde::Serialize;
 use crate::repos::stock_repo::stock_models::QueryableStock;
 use crate::repos::token_count_repo::token_count_models::QueryableTokenCount;
 use std::collections::HashMap;
-use crate::services::stock_similarity_service::ranker::{TokenCountedStock, TokenCountedStockInfo, RankedStock};
+use crate::services::stock_similarity_service::ranker::{TokenCountedStock, TokenCountedStockInfo, RankedStock, RankedResults};
+use crate::repos::similarity_ranking_repo::similarity_ranking_models::InsertableSimilarityRanking;
 
 pub mod ranker;
-
+#[derive(Serialize)]
+pub struct StockSimilarityItemDto {
+    ticker: String,
+  //  stock_exchange: String,
+    ranking: i32
+}
+#[derive(Serialize)]
+pub struct StockSimilarityTargetDto {
+    ticker: String,
+    //stock_exchange: String
+}
+#[derive(Serialize)]
+pub struct StockSimilarityResultDto {
+    ranked_stocks:Vec<StockSimilarityItemDto>,
+    target_stock: StockSimilarityTargetDto
+}
 pub struct StockSimilarityService{
     stock_repo: Arc<StockRepo>,
     similarity_ranking_repo: Arc<SimilarityRankingRepo>,
@@ -38,7 +55,7 @@ impl StockSimilarityService {
         self.token_count_repo.get_all(db_conn)
     }
 
-    pub fn get_similar_stocks(&self, db_conn: &PgConnection, ticker: String) -> Result<Vec<RankedStock>, serde_json::Error>{
+    fn create_token_count_maps(&self, db_conn: &PgConnection) -> HashMap<String, HashMap<String, i32>> {
         let token_counts = self.token_count_repo.get_all(db_conn);
         let mut token_count_map: HashMap<String, HashMap<String,i32>> = HashMap::new();
         token_counts.iter().for_each(|token_count|{
@@ -53,30 +70,80 @@ impl StockSimilarityService {
                 }
             };
         });
+        token_count_map
+    }
+
+    fn create_token_counted_stocks(&self, db_conn: &PgConnection) -> TokenCountedStockInfo {
+        let token_count_map = self.create_token_count_maps(db_conn);
         let stocks = self.stock_repo.get_all(db_conn);
         let mut first = true;
-        let token_counted_stocks = TokenCountedStockInfo {
+        TokenCountedStockInfo {
             stocks: stocks.iter().filter(|stock|{
                 match &stock.stock_exchange {
                     Some(exchange)=>exchange.eq("NYSE"),
                     None => false
                 }
             })
-              .filter(|stock|{
-                    match token_count_map.get(stock.ticker.as_str()) {
-                        Some(_)=>true,
-                        None=>false
-                    }
-              }).map(|stock|{
-                    let stock_token_count_map = token_count_map.get(stock.ticker.as_str()).expect("Filter failure");
-                    TokenCountedStock {
-                        ticker: stock.ticker.clone(),
-                        stock_exchange: stock.stock_exchange.as_ref().expect("stock had no exchange.").clone(),
-                        token_count: stock_token_count_map.clone(),
-                    }
-              }).collect()
-        };
-        ranker::generate_ranking(ticker,token_counted_stocks)
+                          .filter(|stock|{
+                              match token_count_map.get(stock.ticker.as_str()) {
+                                  Some(_)=>true,
+                                  None=>false
+                              }
+                          }).map(|stock|{
+                let stock_token_count_map = token_count_map.get(stock.ticker.as_str()).expect("Filter failure");
+                TokenCountedStock {
+                    ticker: stock.ticker.clone(),
+                    stock_exchange: stock.stock_exchange.as_ref().expect("stock had no exchange.").clone(),
+                    token_count: stock_token_count_map.clone(),
+                }
+            }).collect()
+        }
+    }
+    //TODO: Figure out inner joins so we can get back stocks with additional info from the sim ranking repo
+    pub fn get_similar_stocks(&self, db_conn: &PgConnection, ticker: String) -> Result<StockSimilarityResultDto, serde_json::Error>{
+        let token_counted_stocks = self.create_token_counted_stocks(db_conn);
+        let cached_rankings = self.similarity_ranking_repo.get_rankings_by_target_stock(db_conn, ticker.clone());
+        if cached_rankings.len() > 0 {
+            println!("Found cached data.");
+            let target = StockSimilarityTargetDto {
+                ticker: cached_rankings.get(0).expect("Malformed similarity ranking data.").tickera.clone()
+            };
+            let results = cached_rankings.iter().map(|cached_result|{
+                StockSimilarityItemDto {
+                    ticker: cached_result.tickerb.clone(),
+                    ranking: cached_result.similarity
+                }
+            }).collect();
+            Ok(StockSimilarityResultDto {
+                target_stock: target,
+                ranked_stocks: results
+            })
+        } else {
+            let results = ranker::generate_ranking(ticker,token_counted_stocks);
+            match results {
+                Ok(ranked_results) => {
+                    ranked_results.ranked_stocks.iter().for_each(|ranked_stock|{
+                        self.similarity_ranking_repo.save_one(db_conn,  InsertableSimilarityRanking{
+                            tickera: ranked_results.target_stock.ticker.as_str(),
+                            tickerb: ranked_stock.token_counted_stock.ticker.as_str(),
+                            similarity: &((ranked_stock.ranking * 10000.0) as i32)
+                        });
+                    });
+                    Ok(StockSimilarityResultDto{
+                        ranked_stocks: ranked_results.ranked_stocks.iter().map(|ranked_stock|{
+                            StockSimilarityItemDto {
+                                ticker: ranked_stock.token_counted_stock.ticker.clone(),
+                                ranking: (ranked_stock.ranking * 10000.0) as i32
+                            }
+                        }).collect(),
+                        target_stock: StockSimilarityTargetDto {
+                            ticker: ranked_results.target_stock.ticker,
+                        }
+                    })
+                },
+                Err(e) => Err(e)
+            }
+        }
 
     }
 }
